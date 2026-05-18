@@ -1,0 +1,50 @@
+name: Bug report
+description: Report incorrect kgteach CLI, MCP, SGF, or KataGo adapter behavior.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a kgteach issue. Please avoid uploading private SGF files unless you have permission to share them.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the command, expected behavior, and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or tool call
+      description: Paste the exact CLI command or MCP tool call.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: JSON output or error envelope
+      description: Paste the relevant output.
+      render: json
+    validations:
+      required: false
+  - type: dropdown
+    id: katago
+    attributes:
+      label: KataGo configured?
+      options:
+        - "Yes, local KataGo binary/model/config are available"
+        - "No, this reproduces without KataGo"
+        - "Not sure"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: kgteach version or commit
+      placeholder: "0.1.0 or git SHA"
+    validations:
+      required: false

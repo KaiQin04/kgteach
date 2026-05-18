@@ -1,6 +1,6 @@
 ---
 name: kgteach
-description: Use kgteach when a user asks for Go, baduk, or weiqi SGF analysis, KataGo-backed review, move comparison, variation validation, quizzes, or rank-aware teaching.
+description: Use kgteach when a user asks an AI agent to analyze Go, baduk, or weiqi SGF files with KataGo, explain mistakes, compare moves, validate variations, make quizzes, or provide rank-aware teaching.
 ---
 
 # kgteach

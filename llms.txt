@@ -1,0 +1,29 @@
+# kgteach
+
+kgteach is a CLI and MCP tool that lets AI agents analyze Go, baduk, and weiqi
+games with KataGo and explain key mistakes from SGF files.
+
+Core use cases:
+
+- Inspect SGF files and normalize game metadata.
+- Run KataGo-backed analysis for Go review.
+- Compare candidate moves and played moves.
+- Validate variations before an agent explains them.
+- Generate quiz and rank-aware teaching payloads.
+- Expose the workflow through JSON-only CLI commands and a stdio MCP server.
+
+Primary docs:
+
+- README.md
+- docs/agent-workflow.md
+- docs/katago-setup.md
+- docs/schema.md
+- docs/knowledge-packs.md
+- docs/local-plugin-testing.md
+
+Important constraints:
+
+- Commands must write one JSON payload to stdout.
+- Logs and progress text must go to stderr.
+- Missing KataGo evidence must be explicit.
+- Agents must not invent winrate, score, ownership, or Human SL numbers.

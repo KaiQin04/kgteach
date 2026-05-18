@@ -3,65 +3,199 @@
 [![CI](https://github.com/KaiQin04/kgteach/actions/workflows/ci.yml/badge.svg)](https://github.com/KaiQin04/kgteach/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Agent-first KataGo teaching adapter.
+A CLI tool that lets AI agents analyze Go games with KataGo and explain key
+mistakes from SGF files.
 
-`kgteach` turns KataGo analysis-engine output into stable JSON that an LLM
-teaching agent can use for Go review, candidate comparison, variation checking,
-quiz generation, and follow-up questions.
+`kgteach` is built for Go, baduk, and weiqi review workflows where an LLM agent
+needs evidence before it teaches. KataGo supplies the position analysis,
+`kgteach` turns that analysis into stable JSON, and the agent uses that
+evidence to explain candidate moves, mistakes, variations, quizzes, and
+rank-aware study plans.
 
-## What This Is Not
+## Why This Exists
 
-- This is not a Go GUI.
-- This is not a KataGo replacement.
-- This is not a natural-language Go teacher by itself.
+Most KataGo tools are designed for people looking at a board in a GUI. AI
+agents need a different interface: inspect an SGF, call KataGo, compare moves,
+validate a proposed variation, and return a compact payload that is safe to
+quote in a teaching conversation.
 
-`kgteach` is a machine-first CLI adapter for teaching agents. KataGo provides
-the analysis evidence, `kgteach` normalizes and summarizes that evidence, and
-the agent decides how to explain it to a human learner.
+`kgteach` solves that adapter layer. It is not a KataGo replacement, a Go GUI,
+or a natural-language teacher by itself. It is the tool layer that lets an AI
+Go tutor use KataGo without inventing winrates, score losses, ownership maps,
+or rank-specific claims.
 
-## Project Status
+In about three minutes from a local checkout, you can:
 
-The current implementation provides the agent-facing v0.1 command surface:
+- Check whether KataGo, models, configs, and Human SL support are available.
+- Inspect an SGF and get normalized game metadata.
+- Ask for a review plan of the most teachable mistakes.
+- Validate a variation before an agent explains it to a learner.
 
-- JSON-only CLI output for agent calls.
-- SGF normalization and game inspection.
-- KataGo JSON-line protocol routing and runtime error mapping.
-- Local daemon lifecycle plus Unix-socket analyze routing and persistent disk cache.
-- Optional local KataGo install auto-discovery on macOS.
-- Variation legality checks for captures, suicide, simple ko, pass, and turn color.
-- Compact analyze and teach commands.
-- Rank-compare JSON shape with human policy likelihood extraction when a KataGo
-  human SL model is configured.
-- Agent plugin manifests.
-- Bundled stdio MCP transport used internally by plugin hosts.
-- Knowledge hooks for external joseki, principles, tesuji, life-and-death,
-  endgame, and pedagogy skills.
+## Demo
 
-KataGo-backed analysis requires a local KataGo binary, model, and analysis
-config. Without those files, teaching commands still return stable JSON with
-explicit `analysis_required` markers rather than fabricated evaluations.
+Inspect an SGF:
 
-## Installation
+```bash
+uv run kgteach game inspect fixtures/simple_9x9.sgf
+```
+
+Formatted output:
+
+```json
+{
+  "ok": true,
+  "schema_version": "0.1.0",
+  "command": "game.inspect",
+  "data": {
+    "board_size": 9,
+    "rules": "Chinese",
+    "komi": 6.5,
+    "metadata": {
+      "game_name": "Simple 9x9",
+      "black_player": "Student",
+      "white_player": "Teacher",
+      "result": "W+R"
+    },
+    "move_count": 4,
+    "initial_stone_count": 0,
+    "warnings": []
+  },
+  "warnings": [],
+  "debug": null
+}
+```
+
+Validate a learner's variation before explaining it:
+
+```bash
+uv run kgteach teach line fixtures/simple_9x9.sgf --turn 2 --line "C3 D4"
+```
+
+The response tells an agent that the line is legal by local rules, that engine
+evaluation is still needed, and which player moves at each ply. This is the
+core pattern: `kgteach` gives machine-readable evidence; the agent writes the
+human explanation.
+
+With a local KataGo analysis engine configured, the same workflow can produce a
+rank-aware review plan:
+
+```bash
+uv run kgteach teach plan path/to/game.sgf --student-rank 8k --max-moments 6
+```
+
+## Quickstart
 
 This project is managed with `uv`.
 
 ```bash
 uv sync
 uv run kgteach engine health
+uv run kgteach game inspect fixtures/simple_9x9.sgf
 ```
 
-One-command local setup:
+For KataGo-backed review, configure a local KataGo binary, model, and analysis
+config:
 
 ```bash
-scripts/setup-local.sh
+uv run kgteach config init
+uv run kgteach teach plan path/to/game.sgf --student-rank 8k --max-moments 6
 ```
 
-The setup script creates local machine config. Direct root `.mcp.json`
-generation is available only for low-level debugging with
-`scripts/setup-local.sh --write-project-mcp`.
+See [KataGo setup](docs/katago-setup.md) for environment variables, macOS local
+discovery, daemon mode, and optional Human SL model support.
 
-Set `KGTEACH_DISABLE_LOCAL_APP_DISCOVERY=1` to disable local app-managed KataGo
-discovery in CI or reproducible test environments.
+## Example Use Cases
+
+- **AI Go tutor**: review a student's SGF and explain the biggest mistakes with
+  KataGo evidence.
+- **LLM agent tool**: expose Go analysis through JSON-only CLI commands or the
+  bundled stdio MCP server.
+- **Baduk or weiqi study bot**: compare candidate moves, generate quizzes, and
+  produce rank-aware follow-up questions.
+- **Variation checker**: validate captures, suicide, simple ko, pass moves, and
+  turn color before discussing a line.
+- **Knowledge-pack bridge**: return concept tags and hooks for joseki,
+  direction of play, tesuji, life-and-death, endgame, and pedagogy skills.
+
+## Why Not Existing Tools?
+
+- GUI tools are optimized for humans, not autonomous agents.
+- Raw KataGo analysis is powerful but too low-level for teaching workflows.
+- LLMs need a stable contract so they can cite evidence instead of guessing.
+- Go education needs more than a best move: it needs candidate comparison,
+  legality checks, rank context, and follow-up prompts.
+
+`kgteach` keeps those concerns separate. KataGo analyzes positions, `kgteach`
+normalizes evidence, and the teaching agent decides how to explain the lesson.
+
+## Command Surface
+
+All agent-facing commands write exactly one JSON payload to stdout. Logs,
+warnings, and progress messages belong on stderr.
+
+Common flows:
+
+```bash
+kgteach engine health
+kgteach game inspect game.sgf
+kgteach teach plan game.sgf --student-rank 8k --max-moments 6
+kgteach teach move game.sgf --turn 97 --student-rank 8k
+kgteach teach compare game.sgf --turn 97 --moves Q10,R12,P11
+kgteach teach line game.sgf --turn 97 --line "R12 Q10 R10"
+kgteach teach quiz game.sgf --turn 97 --student-rank 8k
+```
+
+Agent and MCP details:
+
+- [Agent workflow](docs/agent-workflow.md)
+- [JSON schema notes](docs/schema.md)
+- [Knowledge packs](docs/knowledge-packs.md)
+- [Local plugin testing](docs/local-plugin-testing.md)
+
+## Project Status
+
+`kgteach` is currently alpha software with the v0.1 agent-facing command
+surface:
+
+- JSON-only CLI output for agent calls.
+- SGF normalization and game inspection.
+- KataGo JSON-line protocol routing and runtime error mapping.
+- Local daemon lifecycle plus Unix-socket analyze routing and persistent disk
+  cache.
+- Optional local KataGo install auto-discovery on macOS.
+- Variation legality checks for captures, suicide, simple ko, pass, and turn
+  color.
+- Compact analyze and teach commands.
+- Rank-compare JSON shape with human policy likelihood extraction when a
+  KataGo Human SL model is configured.
+- Agent plugin manifests and bundled stdio MCP transport.
+- Knowledge hooks for joseki, principles, tesuji, life-and-death, endgame, and
+  pedagogy skills.
+
+When KataGo files are missing, commands return explicit engine or
+`analysis_required` markers instead of fabricated evaluations.
+
+## Roadmap
+
+- Publish signed GitHub releases and PyPI packages for easier `uvx` usage.
+- Add richer terminal demos and example SGF walkthroughs.
+- Expand rank-aware review examples around KataGo Human SL models.
+- Provide sample knowledge packs for joseki, tesuji, and endgame concepts.
+- Add more agent integration guides for MCP-capable hosts.
+- Build regression fixtures for common teaching scenarios and illegal lines.
+
+## Contributing
+
+Contributions are welcome when they preserve the core contract: factual Go
+analysis evidence first, natural-language teaching second.
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Useful contributions include:
+
+- Better SGF fixtures and edge cases.
+- Teaching payload improvements that remain machine-readable.
+- KataGo setup documentation for more platforms.
+- Agent integration examples.
+- Tests for legality, error envelopes, and runtime failures.
 
 Development checks:
 
@@ -77,87 +211,6 @@ Optional real KataGo smoke test:
 KGTEACH_REAL_KATAGO=1 uv run pytest tests/test_real_katago_smoke.py
 ```
 
-Bundled plugin transport smoke test:
+## License
 
-```bash
-printf '%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"engine_health","arguments":{}}}' \
-  | uv run kgteach-mcp
-```
-
-Local plugin testing:
-
-- Plugin bundle: `plugins/kgteach/`
-- Plugin skill: `plugins/kgteach/skills/kgteach/SKILL.md`
-- Direct root `.mcp.json` is optional debug-only and is not the primary install path.
-- Detailed guide: `docs/local-plugin-testing.md`
-
-## Command Contract
-
-All agent-facing commands write exactly one JSON payload to stdout. Logs,
-warnings, and progress messages must go to stderr.
-
-Success envelope:
-
-```json
-{
-  "ok": true,
-  "schema_version": "0.1.0",
-  "command": "teach.move",
-  "data": {},
-  "warnings": [],
-  "debug": null
-}
-```
-
-Error envelope:
-
-```json
-{
-  "ok": false,
-  "schema_version": "0.1.0",
-  "command": "teach.move",
-  "error": {
-    "code": "TIMEOUT",
-    "message": "Analysis did not finish within 30 seconds."
-  },
-  "warnings": [],
-  "partial": null
-}
-```
-
-## Knowledge Hooks
-
-`kgteach` does not hard-code a joseki encyclopedia or Go theory textbook into
-the core package. Teaching commands return hooks that an agent can pass to
-external knowledge skills or knowledge packs:
-
-```json
-{
-  "concept_tags": ["sente", "shape weakness", "corner joseki"],
-  "position_fingerprint": {
-    "board_size": 19,
-    "turn": 97,
-    "local_region": "upper_right",
-    "hash": "..."
-  },
-  "knowledge_queries": [
-    {
-      "type": "joseki",
-      "anchor": "star_point_low_pincer",
-      "region": "upper_right"
-    },
-    {
-      "type": "principle",
-      "tags": ["sente", "attack timing"]
-    }
-  ],
-  "knowledge_refs": [],
-  "suggested_followups": []
-}
-```
-
-This keeps the KataGo adapter reliable and lets specialized skills provide
-human knowledge such as joseki, direction of play, tesuji, endgame, and
-rank-aware pedagogy.
+MIT. See [LICENSE](LICENSE).

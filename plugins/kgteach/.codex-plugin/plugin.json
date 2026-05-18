@@ -1,7 +1,7 @@
 {
   "name": "kgteach",
   "version": "0.1.0",
-  "description": "Agent-first KataGo teaching adapter for Go review, candidate comparison, variation validation, quizzes, and rank-aware teaching.",
+  "description": "CLI and MCP tool that lets AI agents analyze Go games with KataGo and explain key mistakes from SGF files.",
   "author": {
     "name": "kgteach contributors"
   },
@@ -13,15 +13,21 @@
     "baduk",
     "weiqi",
     "katago",
-    "teaching",
-    "mcp"
+    "sgf",
+    "game-analysis",
+    "go-review",
+    "ai-agent",
+    "llm-tools",
+    "cli-tool",
+    "mcp-server",
+    "teaching"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "kgteach",
-    "shortDescription": "KataGo teaching analysis for agents",
-    "longDescription": "Use kgteach to call KataGo through a stable JSON contract for SGF inspection, move explanation, candidate comparison, variation validation, quiz generation, and Human SL rank-aware teaching.",
+    "shortDescription": "KataGo SGF review for AI agents",
+    "longDescription": "Use kgteach when an AI agent needs KataGo evidence for Go, baduk, or weiqi review. It inspects SGF files, compares candidate moves, validates variations, creates quizzes, and returns rank-aware teaching payloads through a stable JSON contract.",
     "developerName": "kgteach contributors",
     "category": "Coding",
     "capabilities": [

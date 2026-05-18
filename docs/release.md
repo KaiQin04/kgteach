@@ -60,3 +60,41 @@ uvx --from kgteach kgteach-mcp
 
 For plugin mode, verify the plugin bundle with the target host you plan to
 support.
+
+## Release Notes
+
+Treat each GitHub release as the user-facing package page for that version, not
+only as a tag.
+
+Recommended structure:
+
+````markdown
+## What's new
+
+-
+
+## Breaking changes
+
+- None.
+
+## Installation
+
+```bash
+uvx --from kgteach kgteach engine health
+```
+
+## Example
+
+```bash
+kgteach teach plan game.sgf --student-rank 8k --max-moments 6
+```
+
+## Checks
+
+- `uv run pytest`
+- `uv run ruff check .`
+- `uv run mypy src`
+````
+
+Include whether the release was smoke-tested with a real KataGo binary, model,
+and analysis config.

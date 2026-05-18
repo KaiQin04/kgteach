@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: KataGo project
+    url: https://github.com/lightvector/KataGo
+    about: Use this for KataGo engine issues that do not involve kgteach.

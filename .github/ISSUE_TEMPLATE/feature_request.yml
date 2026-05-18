@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest a new Go review, KataGo, SGF, MCP, or agent-teaching capability.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should this solve?
+      description: Describe the Go review or agent workflow pain point.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain the command, JSON payload, or documentation change you want.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention existing KataGo, GUI, MCP, or agent workflow alternatives if relevant.
+    validations:
+      required: false
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - CLI
+        - MCP server
+        - SGF parsing
+        - KataGo runtime
+        - Teaching payloads
+        - Documentation
+        - Plugin metadata
+        - Not sure
+    validations:
+      required: true

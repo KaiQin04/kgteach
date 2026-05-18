@@ -1,6 +1,6 @@
 {
   "name": "kgteach",
-  "description": "Agent-first KataGo teaching adapter for Go review, candidate comparison, variation validation, quizzes, and rank-aware teaching.",
+  "description": "CLI and MCP tool that lets AI agents analyze Go games with KataGo and explain key mistakes from SGF files.",
   "version": "0.1.0",
   "author": {
     "name": "kgteach contributors"
@@ -13,8 +13,14 @@
     "baduk",
     "weiqi",
     "katago",
-    "teaching",
-    "mcp"
+    "sgf",
+    "game-analysis",
+    "go-review",
+    "ai-agent",
+    "llm-tools",
+    "cli-tool",
+    "mcp-server",
+    "teaching"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json"
