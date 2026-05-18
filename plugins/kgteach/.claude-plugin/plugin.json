@@ -1,0 +1,21 @@
+{
+  "name": "kgteach",
+  "description": "Agent-first KataGo teaching adapter for Go review, candidate comparison, variation validation, quizzes, and rank-aware teaching.",
+  "version": "0.1.0",
+  "author": {
+    "name": "kgteach contributors"
+  },
+  "homepage": "https://github.com/KaiQin04/kgteach",
+  "repository": "https://github.com/KaiQin04/kgteach",
+  "license": "MIT",
+  "keywords": [
+    "go",
+    "baduk",
+    "weiqi",
+    "katago",
+    "teaching",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

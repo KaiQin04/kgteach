@@ -1,0 +1,42 @@
+{
+  "name": "kgteach",
+  "version": "0.1.0",
+  "description": "Agent-first KataGo teaching adapter for Go review, candidate comparison, variation validation, quizzes, and rank-aware teaching.",
+  "author": {
+    "name": "kgteach contributors"
+  },
+  "homepage": "https://github.com/KaiQin04/kgteach",
+  "repository": "https://github.com/KaiQin04/kgteach",
+  "license": "MIT",
+  "keywords": [
+    "go",
+    "baduk",
+    "weiqi",
+    "katago",
+    "teaching",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "kgteach",
+    "shortDescription": "KataGo teaching analysis for agents",
+    "longDescription": "Use kgteach to call KataGo through a stable JSON contract for SGF inspection, move explanation, candidate comparison, variation validation, quiz generation, and Human SL rank-aware teaching.",
+    "developerName": "kgteach contributors",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://github.com/KaiQin04/kgteach",
+    "privacyPolicyURL": "https://github.com/KaiQin04/kgteach",
+    "termsOfServiceURL": "https://github.com/KaiQin04/kgteach",
+    "defaultPrompt": [
+      "Inspect this SGF and find teachable moments.",
+      "Explain move 97 with KataGo evidence.",
+      "Compare this move across 15k, 8k, and 1k."
+    ],
+    "brandColor": "#111827",
+    "screenshots": []
+  }
+}

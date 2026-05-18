@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "kgteach": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "if [ -n \"${KGTEACH_REPO:-}\" ]; then cd \"$KGTEACH_REPO\" && exec \"${UV:-uv}\" run kgteach-mcp; else exec \"${UVX:-uvx}\" --from kgteach kgteach-mcp; fi"
+      ],
+      "env": {}
+    }
+  }
+}

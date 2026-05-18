@@ -1,0 +1,20 @@
+{
+  "name": "kgteach-local",
+  "interface": {
+    "displayName": "kgteach Local"
+  },
+  "plugins": [
+    {
+      "name": "kgteach",
+      "source": {
+        "source": "local",
+        "path": "./plugins/kgteach"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Coding"
+    }
+  ]
+}

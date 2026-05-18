@@ -1,0 +1,32 @@
+{
+  "workflow": [
+    {
+      "intent": "check_runtime",
+      "command": "kgteach engine health"
+    },
+    {
+      "intent": "inspect_game",
+      "command": "kgteach game inspect fixtures/simple_9x9.sgf"
+    },
+    {
+      "intent": "review_plan",
+      "command": "kgteach teach plan fixtures/simple_9x9.sgf --student-rank 8k --max-moments 6"
+    },
+    {
+      "intent": "explain_move",
+      "command": "kgteach teach move fixtures/simple_9x9.sgf --turn 1 --student-rank 8k"
+    },
+    {
+      "intent": "compare_candidates",
+      "command": "kgteach teach compare fixtures/simple_9x9.sgf --turn 1 --moves E5,D4"
+    },
+    {
+      "intent": "validate_variation",
+      "command": "kgteach teach line fixtures/simple_9x9.sgf --turn 2 --line \"pass C7\""
+    },
+    {
+      "intent": "make_quiz",
+      "command": "kgteach teach quiz fixtures/simple_9x9.sgf --turn 1 --student-rank 8k"
+    }
+  ]
+}
