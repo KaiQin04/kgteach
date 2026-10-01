@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
-import inspect
 import json
 import os
 import signal
@@ -16,10 +15,24 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from kgteach.config import KataGoConfig, resolve_katago_config
 from kgteach.contract import ErrorCode
-from kgteach.katago import KataGoEngineClient, KataGoProtocolError, KataGoTimeoutError
-from kgteach.runtime import KataGoRuntimeError, build_analysis_command
+from kgteach.engine_runtime import (
+    AnalysisRuntime,
+    _unlink_quietly,
+    cache_file_path,
+    cache_files,
+    cache_key,
+    disk_cache_keys,
+    is_cache_key,
+    read_cache_file,
+    write_cache_file,
+)
+from kgteach.engine_runtime import (
+    _file_identity as _file_identity,
+)
+from kgteach.katago import KataGoProtocolError, KataGoTimeoutError
+from kgteach.runtime import KataGoRuntimeError, close_process
+from kgteach.runtime import _close_stdin as _close_stdin
 
 STATE_FILENAME = "daemon.json"
 SOCKET_FILENAME = "daemon.sock"
@@ -271,7 +284,7 @@ async def _serve_async(
     state_file.parent.mkdir(parents=True, exist_ok=True)
     _remove_socket_file(socket_file)
     stop_event = asyncio.Event()
-    runtime = _DaemonRuntime(cache_dir=cache_dir_path(state_file.parent))
+    runtime = AnalysisRuntime(cache_dir=cache_dir_path(state_file.parent))
     metrics = _DaemonMetrics(started_at=time.time())
 
     server = await asyncio.start_unix_server(
@@ -313,117 +326,23 @@ class _DaemonMetrics:
         self.queued_requests = 0
 
 
-class _DaemonRuntime:
-    """Long-lived KataGo analysis runtime plus persistent response cache."""
-
-    def __init__(self, *, cache_dir: Path) -> None:
-        self._process: Any | None = None
-        self._client: KataGoEngineClient | None = None
-        self._config: KataGoConfig | None = None
-        self._cache: dict[str, list[dict[str, Any]]] = {}
-        self._cache_dir = cache_dir
-        self._lock = asyncio.Lock()
-
-    @property
-    def cache_items(self) -> int:
-        """Return the number of cached analysis results."""
-
-        return len(set(self._cache) | _disk_cache_keys(self._cache_dir))
-
-    def cache_summary(self) -> dict[str, Any]:
-        """Return cache metrics for daemon status responses."""
-
-        return {
-            "cache_items": self.cache_items,
-            "memory_items": len(self._cache),
-            "disk_items": len(_disk_cache_keys(self._cache_dir)),
-            "persistent": True,
-            "cache_dir": str(self._cache_dir),
-        }
-
-    @property
-    def katago_pid(self) -> int | None:
-        """Return the child KataGo process id when available."""
-
-        process = self._process
-        pid = getattr(process, "pid", None)
-        return pid if isinstance(pid, int) else None
-
-    async def analyze(
-        self,
-        query: Mapping[str, Any],
-        *,
-        timeout: float | None,
-    ) -> tuple[list[dict[str, Any]], bool]:
-        """Analyze with a persistent KataGo process and cache by query/config."""
-
-        config = resolve_katago_config()
-        cache_key = _cache_key(query, config)
-        if cache_key in self._cache:
-            return [dict(item) for item in self._cache[cache_key]], True
-        disk_responses = _read_cache_file(self._cache_dir, cache_key)
-        if disk_responses is not None:
-            self._cache[cache_key] = [dict(item) for item in disk_responses]
-            return [dict(item) for item in disk_responses], True
-
-        async with self._lock:
-            if cache_key in self._cache:
-                return [dict(item) for item in self._cache[cache_key]], True
-            disk_responses = _read_cache_file(self._cache_dir, cache_key)
-            if disk_responses is not None:
-                self._cache[cache_key] = [dict(item) for item in disk_responses]
-                return [dict(item) for item in disk_responses], True
-            client = await self._client_for_config(config)
-            responses = await client.analyze(query, timeout=timeout)
-            self._cache[cache_key] = [dict(item) for item in responses]
-            _write_cache_file(self._cache_dir, cache_key, responses)
-            return responses, False
-
-    def clear_cache(self) -> int:
-        """Clear memory and disk cache entries, returning removed item count."""
-
-        previous_keys = set(self._cache) | _disk_cache_keys(self._cache_dir)
-        self._cache.clear()
-        for cache_file in _cache_files(self._cache_dir):
-            try:
-                cache_file.unlink()
-            except FileNotFoundError:
-                continue
-        return len(previous_keys)
-
-    async def close(self) -> None:
-        """Close the persistent KataGo process if it is running."""
-
-        client = self._client
-        process = self._process
-        self._client = None
-        self._process = None
-        self._config = None
-        if client is not None:
-            await client.aclose()
-        if process is not None:
-            await _close_process(process)
-
-    async def _client_for_config(self, config: KataGoConfig) -> KataGoEngineClient:
-        if self._client is not None and self._config == config:
-            return self._client
-        await self.close()
-        command = build_analysis_command(config)
-        self._process = await asyncio.create_subprocess_exec(
-            *command,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        self._client = KataGoEngineClient(self._process)
-        self._config = config
-        return self._client
+# Keep private names as compatibility aliases for one release.
+_DaemonRuntime = AnalysisRuntime
+_cache_key = cache_key
+_cache_file_path = cache_file_path
+_read_cache_file = read_cache_file
+_write_cache_file = write_cache_file
+_disk_cache_keys = disk_cache_keys
+_cache_files = cache_files
+_remove_cache_file = _unlink_quietly
+_is_cache_key = is_cache_key
+_close_process = close_process
 
 
 async def _handle_client(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
-    runtime: _DaemonRuntime,
+    runtime: AnalysisRuntime,
     metrics: _DaemonMetrics,
     state_file: Path,
 ) -> None:
@@ -459,7 +378,7 @@ async def _handle_client(
 
 async def _route_request(
     request: Mapping[str, Any],
-    runtime: _DaemonRuntime,
+    runtime: AnalysisRuntime,
 ) -> dict[str, Any]:
     action = str(request.get("action", "ping"))
     if action == "ping":
@@ -493,7 +412,7 @@ async def _route_request(
 async def _heartbeat_loop(
     state_file: Path,
     metrics: _DaemonMetrics,
-    runtime: _DaemonRuntime,
+    runtime: AnalysisRuntime,
     *,
     heartbeat_interval: float,
 ) -> None:
@@ -703,47 +622,6 @@ def _install_async_signal_handlers(stop_event: asyncio.Event) -> None:
             signal.signal(signum, lambda _signum, _frame: stop_event.set())
 
 
-async def _close_process(process: Any, *, timeout: float = 2.0) -> None:
-    await _close_stdin(process)
-    if getattr(process, "returncode", None) is not None:
-        return
-    terminate = getattr(process, "terminate", None)
-    if terminate is not None:
-        try:
-            terminate()
-        except ProcessLookupError:
-            return
-    wait = getattr(process, "wait", None)
-    if wait is None:
-        return
-    try:
-        await asyncio.wait_for(wait(), timeout=timeout)
-    except TimeoutError:
-        kill = getattr(process, "kill", None)
-        if kill is not None:
-            try:
-                kill()
-            except ProcessLookupError:
-                return
-        await wait()
-
-
-async def _close_stdin(process: Any) -> None:
-    stdin = getattr(process, "stdin", None)
-    if stdin is None:
-        return
-    close = getattr(stdin, "close", None)
-    if close is not None:
-        result = close()
-        if inspect.isawaitable(result):
-            await result
-    wait_closed = getattr(stdin, "wait_closed", None)
-    if wait_closed is not None:
-        result = wait_closed()
-        if inspect.isawaitable(result):
-            await result
-
-
 def _daemon_error_response(exc: Exception) -> dict[str, Any]:
     if isinstance(exc, KataGoRuntimeError):
         return _daemon_error_payload(exc.code, str(exc))
@@ -758,106 +636,6 @@ def _daemon_error_response(exc: Exception) -> dict[str, Any]:
 
 def _daemon_error_payload(code: ErrorCode, message: str) -> dict[str, Any]:
     return {"ok": False, "error": {"code": code.value, "message": message}}
-
-
-def _cache_key(query: Mapping[str, Any], config: KataGoConfig) -> str:
-    payload = {
-        "query": query,
-        "config": {
-            "binary": _file_identity(config.binary),
-            "model": _file_identity(config.model),
-            "config": _file_identity(config.config),
-            "human_model": _file_identity(config.human_model),
-        },
-    }
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
-    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-
-
-def _cache_file_path(cache_dir: Path, cache_key: str) -> Path:
-    if not _is_cache_key(cache_key):
-        raise ValueError("cache key must be a sha256 hex digest")
-    return cache_dir / f"{cache_key}.json"
-
-
-def _read_cache_file(cache_dir: Path, cache_key: str) -> list[dict[str, Any]] | None:
-    cache_file = _cache_file_path(cache_dir, cache_key)
-    try:
-        raw_payload = json.loads(cache_file.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return None
-    except (json.JSONDecodeError, OSError):
-        _remove_cache_file(cache_file)
-        return None
-    if not isinstance(raw_payload, dict):
-        _remove_cache_file(cache_file)
-        return None
-    responses = raw_payload.get("responses")
-    if not isinstance(responses, list) or not all(isinstance(item, dict) for item in responses):
-        _remove_cache_file(cache_file)
-        return None
-    return [dict(item) for item in responses]
-
-
-def _write_cache_file(
-    cache_dir: Path,
-    cache_key: str,
-    responses: Sequence[Mapping[str, Any]],
-) -> None:
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    cache_file = _cache_file_path(cache_dir, cache_key)
-    temporary_file = cache_file.with_name(f"{cache_file.name}.tmp")
-    payload = {
-        "kind": "kgteach.analysis_cache",
-        "schema_version": "0.1.0",
-        "responses": [dict(response) for response in responses],
-    }
-    temporary_file.write_text(
-        json.dumps(payload, sort_keys=True, allow_nan=False),
-        encoding="utf-8",
-    )
-    os.replace(temporary_file, cache_file)
-
-
-def _disk_cache_keys(cache_dir: Path) -> set[str]:
-    return {cache_file.stem for cache_file in _cache_files(cache_dir)}
-
-
-def _cache_files(cache_dir: Path) -> list[Path]:
-    try:
-        return [
-            path
-            for path in cache_dir.glob("*.json")
-            if path.is_file() and _is_cache_key(path.stem)
-        ]
-    except OSError:
-        return []
-
-
-def _remove_cache_file(cache_file: Path) -> None:
-    try:
-        cache_file.unlink()
-    except FileNotFoundError:
-        return
-
-
-def _is_cache_key(value: str) -> bool:
-    return len(value) == 64 and all(char in "0123456789abcdef" for char in value)
-
-
-def _file_identity(path: str | None) -> dict[str, Any] | None:
-    if path is None:
-        return None
-    expanded = Path(path).expanduser()
-    try:
-        stat = expanded.stat()
-    except OSError:
-        return {"path": str(expanded), "exists": False}
-    return {
-        "path": str(expanded),
-        "size": stat.st_size,
-        "mtime_ns": stat.st_mtime_ns,
-    }
 
 
 def _json_line(payload: Mapping[str, Any]) -> bytes:
