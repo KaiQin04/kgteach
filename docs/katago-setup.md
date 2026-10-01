@@ -50,3 +50,17 @@ uv run kgteach daemon stop
 Human supervised-learning models are optional. Without a human model, rank-aware
 commands should report that human policy support is unavailable and fall back to
 heuristics.
+
+## 分析視角與 `reportAnalysisWinratesAs`
+
+`kgteach` 預設 KataGo 的勝率與目差使用待落子方視角。如果分析設定包含
+`reportAnalysisWinratesAs = BLACK`（或 `WHITE`），呼叫正規化函式時必須宣告
+來源視角，讓轉換只發生一次：
+
+```python
+normalize_analysis_responses(responses, perspective="black", source_perspective="black")
+```
+
+`source_perspective` 與 `perspective` 都接受 `side_to_move`、`black`、`white`。
+來源視角填錯會讓其中一方的目差符號與勝率被錯誤翻轉。CLI 使用預設來源視角
+`side_to_move`，因此 CLI 使用的 KataGo 設定應省略 `reportAnalysisWinratesAs`。
