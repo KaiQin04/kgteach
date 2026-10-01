@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 SERVER_NAME = "kgteach"
-SERVER_VERSION = "0.1.0"
+SERVER_VERSION = "0.2.0"
 DEFAULT_PROTOCOL_VERSION = "2024-11-05"
 
 JsonObject = dict[str, Any]
