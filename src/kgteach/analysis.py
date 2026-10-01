@@ -52,17 +52,30 @@ def normalize_analysis_responses(
     top_n: int = 5,
     perspective: str = "side_to_move",
     raw: bool = False,
+    source_perspective: str = "side_to_move",
 ) -> dict[str, Any]:
-    """Normalize KataGo responses into compact agent-facing analysis data."""
+    """Normalize responses, converting from the declared source perspective.
+
+    The source defaults to KataGo's side-to-move reporting. Configs using
+    ``reportAnalysisWinratesAs = BLACK`` or ``WHITE`` must declare that colour
+    so winrates and scores are converted exactly once.
+    """
 
     _validate_perspective(perspective)
+    _validate_perspective(source_perspective)
     if top_n < 0:
         raise ValueError("top_n must be non-negative.")
     return {
         "perspective": perspective,
         "top_n": int(top_n),
         "positions": [
-            _normalize_one_response(response, top_n=top_n, perspective=perspective, raw=raw)
+            _normalize_one_response(
+                response,
+                top_n=top_n,
+                perspective=perspective,
+                source_perspective=source_perspective,
+                raw=raw,
+            )
             for response in responses
         ],
     }
@@ -73,6 +86,7 @@ def _normalize_one_response(
     *,
     top_n: int,
     perspective: str,
+    source_perspective: str,
     raw: bool,
 ) -> dict[str, Any]:
     root_info = response.get("rootInfo", {})
@@ -90,6 +104,7 @@ def _normalize_one_response(
             item,
             perspective=perspective,
             current_player=current_player,
+            source_perspective=source_perspective,
         )
         for index, item in enumerate(move_infos[:top_n], start=1)
         if isinstance(item, Mapping)
@@ -104,6 +119,7 @@ def _normalize_one_response(
             root_info,
             perspective=perspective,
             current_player=current_player,
+            source_perspective=source_perspective,
         ),
         "best_moves": normalized_moves,
     }
@@ -128,6 +144,7 @@ def _normalize_root_info(
     *,
     perspective: str,
     current_player: str,
+    source_perspective: str,
 ) -> dict[str, Any]:
     root: dict[str, Any] = {}
     if (visits := _optional_int(root_info.get("visits"))) is not None:
@@ -137,12 +154,14 @@ def _normalize_root_info(
             winrate,
             perspective=perspective,
             current_player=current_player,
+            source_perspective=source_perspective,
         )
     if (score_lead := _optional_float(root_info.get("scoreLead"))) is not None:
         root["score_lead"] = _score_for_perspective(
             score_lead,
             perspective=perspective,
             current_player=current_player,
+            source_perspective=source_perspective,
         )
     if (utility := _optional_float(root_info.get("utility"))) is not None:
         root["utility"] = utility
@@ -155,6 +174,7 @@ def _normalize_move_info(
     *,
     perspective: str,
     current_player: str,
+    source_perspective: str,
 ) -> dict[str, Any]:
     move: dict[str, Any] = {
         "rank": rank,
@@ -167,12 +187,14 @@ def _normalize_move_info(
             winrate,
             perspective=perspective,
             current_player=current_player,
+            source_perspective=source_perspective,
         )
     if (score_lead := _optional_float(item.get("scoreLead"))) is not None:
         move["score_lead"] = _score_for_perspective(
             score_lead,
             perspective=perspective,
             current_player=current_player,
+            source_perspective=source_perspective,
         )
     if (policy := _optional_float(item.get("policy"))) is not None:
         move["policy"] = policy
@@ -238,8 +260,9 @@ def _winrate_for_perspective(
     *,
     perspective: str,
     current_player: str,
+    source_perspective: str = "side_to_move",
 ) -> float:
-    if _invert_for_perspective(perspective, current_player):
+    if _invert_for_perspective(perspective, current_player, source_perspective):
         return round(1.0 - winrate, 10)
     return winrate
 
@@ -249,18 +272,31 @@ def _score_for_perspective(
     *,
     perspective: str,
     current_player: str,
+    source_perspective: str = "side_to_move",
 ) -> float:
-    if _invert_for_perspective(perspective, current_player):
+    if _invert_for_perspective(perspective, current_player, source_perspective):
         return -score_lead
     return score_lead
 
 
-def _invert_for_perspective(perspective: str, current_player: str) -> bool:
-    if perspective == "black":
-        return current_player == "W"
-    if perspective == "white":
-        return current_player == "B"
-    return False
+def _absolute_color(perspective: str, current_player: str) -> str:
+    """Resolve a perspective name to the colour whose seat it describes."""
+
+    if perspective == "side_to_move":
+        return current_player
+    return "B" if perspective == "black" else "W"
+
+
+def _invert_for_perspective(
+    perspective: str,
+    current_player: str,
+    source_perspective: str = "side_to_move",
+) -> bool:
+    """Return whether raw numbers must flip to reach the target perspective."""
+
+    return _absolute_color(perspective, current_player) != _absolute_color(
+        source_perspective, current_player
+    )
 
 
 def _optional_float(value: Any) -> float | None:

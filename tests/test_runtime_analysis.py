@@ -565,3 +565,57 @@ async def _analyze_query_maps_launch_and_protocol_errors(
 
     assert protocol_error.value.code == ErrorCode.KATAGO_PROTOCOL_ERROR
     assert process.terminated is True
+
+
+def _white_to_move_response() -> dict[str, Any]:
+    """One final response where White is to move and Black leads by 3.5."""
+
+    return {
+        "id": "w-to-move",
+        "turnNumber": 3,
+        "rootInfo": {"currentPlayer": "W", "visits": 10, "winrate": 0.25, "scoreLead": -3.5},
+        "moveInfos": [{"move": "D4", "visits": 8, "winrate": 0.30, "scoreLead": -2.5}],
+    }
+
+
+def test_side_to_move_source_to_black_inverts_for_white() -> None:
+    """Default behaviour: KataGo side-to-move numbers flip when White moves."""
+
+    normalized = normalize_analysis_responses([_white_to_move_response()], perspective="black")
+    root = normalized["positions"][0]["root"]
+    assert root["score_lead"] == 3.5
+    assert root["winrate"] == 0.75
+
+
+def test_black_source_to_black_perspective_keeps_sign() -> None:
+    """reportAnalysisWinratesAs=BLACK input must not be flipped a second time."""
+
+    normalized = normalize_analysis_responses(
+        [_white_to_move_response()],
+        perspective="black",
+        source_perspective="black",
+    )
+    root = normalized["positions"][0]["root"]
+    assert root["score_lead"] == -3.5
+    assert root["winrate"] == 0.25
+    assert normalized["positions"][0]["best_moves"][0]["score_lead"] == -2.5
+
+
+def test_black_source_to_side_to_move_inverts_for_white() -> None:
+    """BLACK numbers shown from the mover's seat flip when White is to move."""
+
+    normalized = normalize_analysis_responses(
+        [_white_to_move_response()],
+        perspective="side_to_move",
+        source_perspective="black",
+    )
+    root = normalized["positions"][0]["root"]
+    assert root["score_lead"] == 3.5
+    assert root["winrate"] == 0.75
+
+
+def test_invalid_source_perspective_is_rejected() -> None:
+    """source_perspective shares the perspective validation."""
+
+    with pytest.raises(ValueError, match="perspective must be one of"):
+        normalize_analysis_responses([_white_to_move_response()], source_perspective="mover")
