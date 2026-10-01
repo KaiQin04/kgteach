@@ -150,7 +150,9 @@ def test_daemon_runtime_uses_persistent_cache_before_engine(
     ]
     daemon._write_cache_file(tmp_path, cache_key, responses)
     runtime = daemon._DaemonRuntime(cache_dir=tmp_path)
-    monkeypatch.setattr(daemon, "_cache_key", lambda _query, _config: cache_key)
+    from kgteach import engine_runtime
+
+    monkeypatch.setattr(engine_runtime, "cache_key", lambda _query, _config: cache_key)
 
     cached_responses, cache_hit = asyncio.run(runtime.analyze({"id": "query"}, timeout=0.1))
 

@@ -229,7 +229,9 @@ async def _create_analysis_process(config: KataGoConfig) -> Any:
         ) from exc
 
 
-async def _close_process(process: Any, *, timeout: float = 2.0) -> None:
+async def close_process(process: Any, *, timeout: float = 2.0) -> None:
+    """Close stdin, terminate, then kill the KataGo process after timeout."""
+
     await _close_stdin(process)
     if getattr(process, "returncode", None) is not None:
         return
@@ -254,6 +256,9 @@ async def _close_process(process: Any, *, timeout: float = 2.0) -> None:
             except ProcessLookupError:
                 return
         await wait()
+
+
+_close_process = close_process
 
 
 async def _close_stdin(process: Any) -> None:
