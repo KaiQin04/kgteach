@@ -1,6 +1,6 @@
 {
   "name": "kgteach",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CLI and MCP tool that lets AI agents analyze Go games with KataGo and explain key mistakes from SGF files.",
   "author": {
     "name": "kgteach contributors"

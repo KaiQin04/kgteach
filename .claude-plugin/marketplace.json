@@ -9,7 +9,7 @@
       "name": "kgteach",
       "source": "./plugins/kgteach",
       "description": "KataGo teaching analysis tools for agents.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "license": "MIT",
       "keywords": [
         "go",
